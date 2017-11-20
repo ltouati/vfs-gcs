@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import static java.lang.String.format;
@@ -49,6 +50,18 @@ public class GCSFileObject extends AbstractFileObject {
                   @Nonnull Storage storage) {
         super(name, fs);
         this.storage = storage;
+    }
+
+    /**
+     * We must override this method because the parent one throws exception.
+     *
+     * @param modtime the last modified time.
+     * @return true if successfully modified, false otherwise.
+     * @throws Exception in case an error happens.
+     */
+    @Override
+    protected boolean doSetLastModifiedTime(long modtime) throws Exception {
+        return true;
     }
 
     @Nonnull
