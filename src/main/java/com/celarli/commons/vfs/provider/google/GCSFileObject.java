@@ -6,6 +6,8 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import org.apache.commons.vfs2.FileNotFolderException;
+import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileName;
@@ -251,4 +253,47 @@ public class GCSFileObject extends AbstractFileObject {
 
         this.currentBlob = storage.create(BlobInfo.newBuilder(urlFileName.getHostName(), path).build());
     }
+
+
+    /**
+     * Returns the file's list of children.
+     *
+     * @return The list of children
+     * @throws FileSystemException If there was a problem listing children
+     * @see AbstractFileObject#getChildren()
+     */
+    @Override
+    public FileObject[] getChildren() throws FileSystemException {
+
+        try {
+            // Folders which are copied from other folders, have type = IMAGINARY. We can not throw exception based on folder
+            // type only and so we have check here for content.
+            if (getType().hasContent()) {
+                throw new FileNotFolderException(getName());
+            }
+        }
+        catch (Exception ex) {
+            throw new FileNotFolderException(getName(), ex);
+        }
+
+        return super.getChildren();
+    }
+
+
+    /**
+     * Callback for handling the <code>getLastModifiedTime()</code> Commons VFS API call.
+     *
+     * @return Time since the file has last been modified
+     * @throws Exception
+     */
+    @Override
+    protected long doGetLastModifiedTime() throws Exception {
+
+        if (currentBlob != null) {
+            return currentBlob.getUpdateTime();
+        }
+
+        return super.doGetLastModifiedTime();
+    }
+
 }
