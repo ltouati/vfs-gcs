@@ -6,7 +6,7 @@
 
     <groupId>com.celarli.commons</groupId>
     <artifactId>vfs-gcs</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Google Cloud Storage Provider for the Apache Commons VFS library.</description>
@@ -130,11 +130,13 @@
             <artifactId>commons-collections4</artifactId>
             <version>4.0</version>
         </dependency>
+
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-storage</artifactId>
-            <version>1.6.0</version>
+            <version>1.38.0</version>
         </dependency>
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

@@ -19,15 +19,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import static java.lang.String.format;
+
 
 /**
  * This class is in charge of bridging the gap between commons vfs and GCS
  */
 public class GCSFileObject extends AbstractFileObject {
+
     private static final Logger log = LoggerFactory.getLogger(GCSFileObject.class);
     /**
      * The GCS client
@@ -38,6 +39,7 @@ public class GCSFileObject extends AbstractFileObject {
      */
     private Blob currentBlob = null;
 
+
     /**
      * Constructor
      *
@@ -45,12 +47,12 @@ public class GCSFileObject extends AbstractFileObject {
      * @param fs      the file system object
      * @param storage the GCS client
      */
-    GCSFileObject(@Nonnull AbstractFileName name,
-                  @Nonnull GCSFileSystem fs,
-                  @Nonnull Storage storage) {
+    GCSFileObject(@Nonnull AbstractFileName name, @Nonnull GCSFileSystem fs, @Nonnull Storage storage) {
+
         super(name, fs);
         this.storage = storage;
     }
+
 
     /**
      * We must override this method because the parent one throws exception.
@@ -61,22 +63,34 @@ public class GCSFileObject extends AbstractFileObject {
      */
     @Override
     protected boolean doSetLastModifiedTime(long modtime) throws Exception {
+
         return true;
     }
 
+
     @Nonnull
-    @Override protected FileType doGetType() throws Exception {
+    @Override
+    protected FileType doGetType() throws Exception {
+
         log.debug("Trying to get file type for:" + this.getName());
         URLFileName urlFileName = (URLFileName) this.getName();
-        Bucket      bucket      = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(urlFileName.getHostName());
         if (bucket == null || !bucket.exists()) {
             throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
         }
-        Blob blob = bucket.get(urlFileName.getPath());
+
+        String path = urlFileName.getPath();
+
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+
+        Blob blob = bucket.get(path);
         if (blob != null && blob.exists()) {
             log.debug(format("File :%s exists on bucket", this.getName()));
             return FileType.FILE;
-        } else {
+        }
+        else {
             // GCS does not have folders.  Just files with path separators in
             // their names.
 
@@ -91,10 +105,11 @@ public class GCSFileObject extends AbstractFileObject {
             if (prefix.equals("/")) {
                 // Special root path case. List the root blobs with no prefix
                 return FileType.FOLDER;
-            } else {
+            }
+            else {
                 log.debug(format("listing directory :%s", prefix));
                 blobs = bucket.list(Storage.BlobListOption.currentDirectory(),
-                                    Storage.BlobListOption.prefix(prefix));
+                        Storage.BlobListOption.prefix(prefix));
             }
             if (blobs.getValues().iterator().hasNext()) {
                 return FileType.FOLDER;
@@ -104,29 +119,43 @@ public class GCSFileObject extends AbstractFileObject {
 
     }
 
+
     @Nonnull
-    @Override protected String[] doListChildren() throws Exception {
-        log.debug(format("Listing directory below:%s",this.getName().toString()));
+    @Override
+    protected String[] doListChildren() throws Exception {
+
+        log.debug(format("Listing directory below:%s", this.getName().toString()));
         URLFileName urlFileName = (URLFileName) this.getName();
-        Bucket      bucket      = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(urlFileName.getHostName());
         if (bucket == null || !bucket.exists()) {
             throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
         }
 
         String prefix = computePrefix(urlFileName);
+
+        if (prefix.startsWith("/")) {
+            prefix = prefix.substring(1);
+        }
+
         Page<Blob> blobs = bucket.list(Storage.BlobListOption.currentDirectory(),
-                                       Storage.BlobListOption.prefix(prefix));
+                Storage.BlobListOption.prefix(prefix));
+
         List<String> childrenList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
-            childrenList.add(blob.getName());
+            String name = blob.getName();
+            if (!name.equalsIgnoreCase(prefix)) {
+                childrenList.add("/" + name);
+            }
         }
         String[] ret = new String[childrenList.size()];
         childrenList.toArray(ret);
         return ret;
     }
 
+
     @Nonnull
     private String computePrefix(@Nonnull URLFileName urlFileName) {
+
         String prefix = urlFileName.getPath();
         if (!prefix.endsWith("/")) {
             prefix += "/";
@@ -134,15 +163,22 @@ public class GCSFileObject extends AbstractFileObject {
         return prefix;
     }
 
-    @Override protected long doGetContentSize() throws Exception {
+
+    @Override
+    protected long doGetContentSize() throws Exception {
+
         return this.currentBlob.getSize();
     }
 
+
     @Nonnull
-    @Override protected InputStream doGetInputStream() throws Exception {
+    @Override
+    protected InputStream doGetInputStream() throws Exception {
+
         final ReadChannel readChannel = this.storage.reader(this.currentBlob.getBlobId());
         return Channels.newInputStream(readChannel);
     }
+
 
     /**
      * Callback for handling create folder requests.  Since there are no folders
@@ -152,8 +188,10 @@ public class GCSFileObject extends AbstractFileObject {
      */
     @Override
     protected void doCreateFolder() throws Exception {
+
         log.info("doCreateFolder() called.");
     }
+
 
     /**
      * Used for creating folders.  It's not used since GCS does not have
@@ -163,37 +201,54 @@ public class GCSFileObject extends AbstractFileObject {
      */
     @Override
     public void createFolder() throws FileSystemException {
+
         log.debug("createFolder() called.");
     }
 
-    @Override protected void doAttach() throws Exception {
+
+    @Override
+    protected void doAttach() throws Exception {
+
         URLFileName urlFileName = (URLFileName) this.getName();
-        Bucket      bucket      = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(urlFileName.getHostName());
         if (bucket == null || !bucket.exists()) {
             throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
         }
-        this.currentBlob = bucket.get(urlFileName.getPath());
+
+        String path = urlFileName.getPath();
+
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        this.currentBlob = bucket.get(path);
     }
 
-    @Override protected void doDelete() throws Exception {
+
+    @Override
+    protected void doDelete() throws Exception {
+
         getCurrentBlob();
         this.currentBlob.delete();
     }
 
+
     @Nonnull
-    @Override protected OutputStream doGetOutputStream(boolean bAppend) throws Exception {
+    @Override
+    protected OutputStream doGetOutputStream(boolean bAppend) throws Exception {
+
         getCurrentBlob();
         return Channels.newOutputStream(this.currentBlob.writer());
     }
 
+
     private void getCurrentBlob() {
+
         URLFileName urlFileName = (URLFileName) this.getName();
-        String      path        = urlFileName.getPath();
+        String path = urlFileName.getPath();
         if (path.startsWith("/")) {
             path = path.substring(1);
         }
-        this.currentBlob =
-                storage.create(
-                        BlobInfo.newBuilder(urlFileName.getHostName(), path).build());
+
+        this.currentBlob = storage.create(BlobInfo.newBuilder(urlFileName.getHostName(), path).build());
     }
 }
