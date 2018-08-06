@@ -32,20 +32,37 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
 
 
     /**
-     * Set the input stream for json key file to access GCS
+     * Set the input stream for key to access GCS
      */
     public void setKeyStream(FileSystemOptions opts, InputStream fis) {
 
-        setParam(opts, "jsonKey", fis);
+        setParam(opts, "key", fis);
     }
 
 
     /**
-     * Get the input stream set by file system to access GCS
+     * Get the input stream for key to access GCS
      */
     public InputStream getKeyStream(FileSystemOptions opts) {
 
-        return (InputStream) getParam(opts, "jsonKey");
+        return (InputStream) getParam(opts, "key");
     }
 
+
+    /**
+     * Set the hostname, will be used while constructing storage client for GCS
+     */
+    public void setHostname(FileSystemOptions opts, String hostname) {
+
+        setParam(opts, "hostname", hostname);
+    }
+
+
+    /**
+     * Get the hostname, will be used while constructing storage client for GCS
+     */
+    public String getHostname(FileSystemOptions opts) {
+
+        return (String) getParam(opts, "hostname");
+    }
 }

@@ -51,7 +51,13 @@ public class GCSFileProvider extends AbstractOriginatingFileProvider {
             else {
                 GoogleCredentials credentials = GoogleCredentials.fromStream(fis);
 
-                storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+                String hostname = GcsFileSystemConfigBuilder.getInstance().getHostname(fileSystemOptions);
+                if (hostname != null) {
+                    storage = StorageOptions.newBuilder().setCredentials(credentials).setHost(hostname).build().getService();
+                }
+                else {
+                    storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+                }
             }
 
             return new GCSFileSystem(fileName, fileSystemOptions, storage);
