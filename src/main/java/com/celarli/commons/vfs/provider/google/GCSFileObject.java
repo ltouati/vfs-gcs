@@ -76,6 +76,11 @@ public class GCSFileObject extends AbstractFileObject {
 
         log.debug("Trying to get file type for:" + this.getName());
         URLFileName urlFileName = (URLFileName) this.getName();
+
+        if (urlFileName != null && urlFileName.getType() == FileType.FOLDER) {
+            return FileType.FOLDER;
+        }
+
         Bucket bucket = this.storage.get(urlFileName.getHostName());
         if (bucket == null || !bucket.exists()) {
             throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
@@ -93,16 +98,13 @@ public class GCSFileObject extends AbstractFileObject {
             return FileType.FILE;
         }
         else {
-            // GCS does not have folders.  Just files with path separators in
-            // their names.
+            // GCS does not have folders.  Just files with path separators in their names.
 
             // Here's the trick for folders.
             //
-            // Do a listing on that prefix.  If it returns anything, after not
-            // existing, then it's a folder.
+            // Do a listing on that prefix.  If it returns anything, after not existing, then it's a folder.
             String prefix = computePrefix(urlFileName);
-            log.debug(
-                    format("File does not :%s exists on bucket try to see if it's a directory", this.getName()));
+            log.debug(format("File does not :%s exists on bucket try to see if it's a directory", this.getName()));
             Page<Blob> blobs;
             if (prefix.equals("/")) {
                 // Special root path case. List the root blobs with no prefix
@@ -110,8 +112,7 @@ public class GCSFileObject extends AbstractFileObject {
             }
             else {
                 log.debug(format("listing directory :%s", prefix));
-                blobs = bucket.list(Storage.BlobListOption.currentDirectory(),
-                        Storage.BlobListOption.prefix(prefix));
+                blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(prefix));
             }
             if (blobs.getValues().iterator().hasNext()) {
                 return FileType.FOLDER;
