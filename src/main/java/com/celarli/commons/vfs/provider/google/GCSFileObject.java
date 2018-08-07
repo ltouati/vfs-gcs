@@ -213,7 +213,9 @@ public class GCSFileObject extends AbstractFileObject {
     protected void doAttach() throws Exception {
 
         URLFileName urlFileName = (URLFileName) this.getName();
+
         Bucket bucket = this.storage.get(urlFileName.getHostName());
+
         if (bucket == null || !bucket.exists()) {
             throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
         }

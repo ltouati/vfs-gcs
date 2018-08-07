@@ -6,6 +6,7 @@ import com.google.cloud.storage.StorageOptions;
 import org.apache.commons.vfs2.Capability;
 import org.apache.commons.vfs2.FileName;
 import org.apache.commons.vfs2.FileSystem;
+import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.AbstractOriginatingFileProvider;
 import org.apache.commons.vfs2.provider.URLFileNameParser;
@@ -44,20 +45,19 @@ public class GCSFileProvider extends AbstractOriginatingFileProvider {
 
             InputStream fis = GcsFileSystemConfigBuilder.getInstance().getKeyStream(fileSystemOptions);
 
-            Storage storage;
             if (fis == null) {
-                storage = StorageOptions.getDefaultInstance().getService();
+                throw new FileSystemException("Credential not found");
+            }
+
+            Storage storage;
+
+            GoogleCredentials credentials = GoogleCredentials.fromStream(fis);
+            String hostname = GcsFileSystemConfigBuilder.getInstance().getHostname(fileSystemOptions);
+            if (hostname != null) {
+                storage = StorageOptions.newBuilder().setCredentials(credentials).setHost(hostname).build().getService();
             }
             else {
-                GoogleCredentials credentials = GoogleCredentials.fromStream(fis);
-
-                String hostname = GcsFileSystemConfigBuilder.getInstance().getHostname(fileSystemOptions);
-                if (hostname != null) {
-                    storage = StorageOptions.newBuilder().setCredentials(credentials).setHost(hostname).build().getService();
-                }
-                else {
-                    storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
-                }
+                storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
             }
 
             return new GCSFileSystem(fileName, fileSystemOptions, storage);
