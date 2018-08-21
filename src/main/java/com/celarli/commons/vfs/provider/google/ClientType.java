@@ -15,6 +15,12 @@ public enum ClientType {
     }
 
 
+    public Integer getType() {
+
+        return type;
+    }
+
+
     public static ClientType getByType(Integer type) {
 
         if (type != null) {
