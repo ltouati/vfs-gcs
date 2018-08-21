@@ -65,4 +65,22 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
 
         return (String) getParam(opts, "hostname");
     }
+
+
+    /**
+     * Set the client type, will be used while constructing storage client for GCS
+     */
+    public void setClientType(FileSystemOptions opts, Integer type) {
+
+        setParam(opts, "clientType", type);
+    }
+
+
+    /**
+     * Get the client type, will be used while constructing storage client for GCS
+     */
+    public Integer getClientType(FileSystemOptions opts) {
+
+        return (Integer) getParam(opts, "clientType");
+    }
 }
