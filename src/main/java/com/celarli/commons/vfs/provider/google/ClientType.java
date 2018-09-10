@@ -1,5 +1,9 @@
 package com.celarli.commons.vfs.provider.google;
 
+import java.util.Arrays;
+import java.util.Optional;
+
+
 public enum ClientType {
 
     APPLICATION(1),
@@ -15,22 +19,8 @@ public enum ClientType {
     }
 
 
-    public Integer getType() {
+    public static Optional<ClientType> getByType(Integer type) {
 
-        return type;
-    }
-
-
-    public static ClientType getByType(Integer type) {
-
-        if (type != null) {
-            for (ClientType clientType : values()) {
-                if (clientType.type == type) {
-                    return clientType;
-                }
-            }
-        }
-
-        return null;
+        return Arrays.stream(values()).filter(ct -> ct.type == type).findFirst();
     }
 }
