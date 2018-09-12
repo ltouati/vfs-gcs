@@ -6,7 +6,7 @@
 
   <groupId>com.celarli.commons</groupId>
   <artifactId>vfs-gcs</artifactId>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
 
   <name>${project.groupId}:${project.artifactId}</name>
   <description>Google Cloud Storage Provider for the Apache Commons VFS library.</description>
