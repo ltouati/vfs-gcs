@@ -6,6 +6,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.apache.commons.vfs2.FileSystemOptions;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
@@ -26,14 +27,14 @@ public class GCSClientFactory {
         ClientType clientType = optional.orElseThrow(() -> new RuntimeException(INVALID_CLIENT_TYPE));
         switch (clientType) {
         case STORAGE_ACCOUNT:
-            InputStream inputStream = GcsFileSystemConfigBuilder.getInstance().getKeyStream(fileSystemOptions);
+            byte[] bytes = GcsFileSystemConfigBuilder.getInstance().getKey(fileSystemOptions);
 
-            if (inputStream == null) {
+            if (bytes == null) {
                 throw new RuntimeException(CREDENTIAL_NOT_FOUND);
             }
 
             try {
-                GoogleCredentials credentials = GoogleCredentials.fromStream(inputStream);
+                GoogleCredentials credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(bytes));
 
                 String hostname = GcsFileSystemConfigBuilder.getInstance().getHostname(fileSystemOptions);
                 if (hostname != null) {
