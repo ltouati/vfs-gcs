@@ -19,6 +19,12 @@ public enum ClientType {
     }
 
 
+    public Integer getType() {
+
+        return type;
+    }
+
+
     public static Optional<ClientType> getByType(Integer type) {
 
         return Arrays.stream(values()).filter(ct -> ct.type == type).findFirst();
