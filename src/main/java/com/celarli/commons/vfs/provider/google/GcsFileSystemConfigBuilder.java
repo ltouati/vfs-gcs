@@ -4,8 +4,6 @@ import org.apache.commons.vfs2.FileSystem;
 import org.apache.commons.vfs2.FileSystemConfigBuilder;
 import org.apache.commons.vfs2.FileSystemOptions;
 
-import java.io.InputStream;
-
 
 public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
 
@@ -34,7 +32,7 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
     /**
      * Set the input stream for key to access GCS
      */
-    public void setKeyStream(FileSystemOptions opts, InputStream fis) {
+    public void setKey(FileSystemOptions opts, byte[] fis) {
 
         setParam(opts, "key", fis);
     }
@@ -43,9 +41,9 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
     /**
      * Get the input stream for key to access GCS
      */
-    public InputStream getKeyStream(FileSystemOptions opts) {
+    public byte[] getKey(FileSystemOptions opts) {
 
-        return (InputStream) getParam(opts, "key");
+        return (byte[]) getParam(opts, "key");
     }
 
 
@@ -64,5 +62,23 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
     public String getHostname(FileSystemOptions opts) {
 
         return (String) getParam(opts, "hostname");
+    }
+
+
+    /**
+     * Set the client type, will be used while constructing storage client for GCS
+     */
+    public void setClientType(FileSystemOptions opts, Integer type) {
+
+        setParam(opts, "clientType", type);
+    }
+
+
+    /**
+     * Get the client type, will be used while constructing storage client for GCS
+     */
+    public Integer getClientType(FileSystemOptions opts) {
+
+        return (Integer) getParam(opts, "clientType");
     }
 }

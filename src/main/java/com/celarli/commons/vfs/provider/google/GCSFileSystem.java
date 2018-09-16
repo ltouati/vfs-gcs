@@ -47,7 +47,7 @@ public class GCSFileSystem extends AbstractFileSystem {
      */
     @Nonnull
     @Override
-    protected FileObject createFile(@Nonnull AbstractFileName abstractFileName) throws Exception {
+    protected FileObject createFile(@Nonnull AbstractFileName abstractFileName) {
 
         return new GCSFileObject(abstractFileName, this, storage);
     }

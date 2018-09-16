@@ -13,6 +13,7 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileName;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 import org.apache.commons.vfs2.provider.URLFileName;
+import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,8 @@ public class GCSFileObject extends AbstractFileObject {
      * The current blob object
      */
     private Blob currentBlob = null;
+
+    private static Tika tika = new Tika();
 
 
     /**
@@ -239,14 +242,14 @@ public class GCSFileObject extends AbstractFileObject {
 
     @Nonnull
     @Override
-    protected OutputStream doGetOutputStream(boolean bAppend) throws Exception {
+    protected OutputStream doGetOutputStream(boolean bAppend) {
 
-        getCurrentBlob();
+        getCurrentBlob(true);
         return Channels.newOutputStream(this.currentBlob.writer());
     }
 
 
-    private void getCurrentBlob() {
+    private void getCurrentBlob(boolean detectContentType) {
 
         URLFileName urlFileName = (URLFileName) this.getName();
         String path = urlFileName.getPath();
@@ -254,7 +257,24 @@ public class GCSFileObject extends AbstractFileObject {
             path = path.substring(1);
         }
 
-        this.currentBlob = storage.create(BlobInfo.newBuilder(urlFileName.getHostName(), path).build());
+        BlobInfo blobInfo;
+        if (detectContentType) {
+            String fileName = getName().getBaseName();
+            String contentType = tika.detect(fileName);
+
+            blobInfo = BlobInfo.newBuilder(urlFileName.getHostName(), path).setContentType(contentType).build();
+        }
+        else {
+            blobInfo = BlobInfo.newBuilder(urlFileName.getHostName(), path).build();
+        }
+
+        this.currentBlob = storage.create(blobInfo);
+    }
+
+
+    private void getCurrentBlob() {
+
+        getCurrentBlob(false);
     }
 
 
