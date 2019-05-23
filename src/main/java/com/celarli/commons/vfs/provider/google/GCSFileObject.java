@@ -476,7 +476,7 @@ public class GCSFileObject extends AbstractFileObject {
                     && destinationCredential != null
                     && sourceCredential.equals(destinationCredential)) {
 
-                return false;
+                return true;
             }
         }
 
