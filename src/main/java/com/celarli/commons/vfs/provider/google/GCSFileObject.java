@@ -1,15 +1,23 @@
 package com.celarli.commons.vfs.provider.google;
 
 import com.google.api.gax.paging.Page;
+import com.google.auth.Credentials;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
+import org.apache.commons.net.io.CopyStreamListener;
+import org.apache.commons.net.io.Util;
 import org.apache.commons.vfs2.FileNotFolderException;
 import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSelector;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileType;
+import org.apache.commons.vfs2.NameScope;
+import org.apache.commons.vfs2.Selectors;
 import org.apache.commons.vfs2.provider.AbstractFileName;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 import org.apache.commons.vfs2.provider.URLFileName;
@@ -18,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
@@ -188,7 +197,7 @@ public class GCSFileObject extends AbstractFileObject {
 
     /**
      * Callback for handling create folder requests.  Since there are no folders
-     * in GCS this call is ingored.
+     * in GCS this call is ignored.
      *
      * @throws Exception ignored
      */
@@ -319,4 +328,170 @@ public class GCSFileObject extends AbstractFileObject {
         return super.doGetLastModifiedTime();
     }
 
+
+    @Override
+    public void copyFrom(FileObject file, FileSelector selector) throws FileSystemException {
+
+        this.copyFrom(file, selector, null);
+    }
+
+
+    /**
+     * This method help to copy blob server side if source and destination location belongs to same project.
+     * It also takes listener to report progress of file/folder being copied.
+     *
+     * @param file
+     * @param selector
+     * @param copyStreamListener
+     * @throws FileSystemException
+     */
+    public void copyFrom(FileObject file, FileSelector selector, CopyStreamListener copyStreamListener)
+            throws FileSystemException {
+
+        if (!file.exists()) {
+            throw new FileSystemException("vfs.provider/copy-missing-file.error", file);
+        }
+
+        if (canCopyServerSide(file)) {
+            URLFileName urlFileName = (URLFileName) this.getName();
+            String path = urlFileName.getPath();
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+
+            String bucket = urlFileName.getHostName();
+
+            GCSFileObject gcsFile = (GCSFileObject) file;
+
+            CopyWriter copyWriter = gcsFile.currentBlob.copyTo(BlobId.of(bucket, path));
+
+            try {
+                //Need to reset file type after copy operation
+                this.injectType(this.doGetType());
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            //Current blob is now copied one
+            this.currentBlob = copyWriter.getResult();
+        }
+        else {
+            copyThroughStream(file, selector, copyStreamListener);
+
+            try {
+                //Required to refresh blob once it is copied to get updated metadata of blob, i.e. size
+                this.doAttach();
+            }
+            catch (Exception e) {
+                //swallowed intentionally to continue working further
+            }
+        }
+    }
+
+
+    /**
+     * Method copied from AbstractFileObject of Apache VFS lib. With support to report listener for progress.
+     *
+     * @param file
+     * @param selector
+     * @param copyStreamListener
+     * @throws FileSystemException
+     */
+    private void copyThroughStream(FileObject file, FileSelector selector, CopyStreamListener copyStreamListener)
+            throws FileSystemException {
+
+        // Locate the files to copy across
+        final ArrayList<FileObject> files = new ArrayList();
+        file.findFiles(selector, false, files);
+
+        // Copy everything across
+        final int count = files.size();
+        for (int i = 0; i < count; i++) {
+            final FileObject srcFile = files.get(i);
+
+            // Determine the destination file
+            final String relPath = file.getName().getRelativeName(srcFile.getName());
+            final FileObject destFile = resolveFile(relPath, NameScope.DESCENDENT_OR_SELF);
+
+            // Clean up the destination file, if necessary
+            if (destFile.exists() && destFile.getType() != srcFile.getType()) {
+                // The destination file exists, and is not of the same type, so delete it
+                // TODO - add a pluggable policy for deleting and overwriting existing files
+                destFile.delete(Selectors.SELECT_ALL);
+            }
+
+            // Copy across
+            try {
+                if (srcFile.getType().hasContent()) {
+                    try {
+                        OutputStream destinationFileOut = destFile.getContent().getOutputStream();
+                        try {
+                            Util.copyStream(srcFile.getContent().getInputStream(), destinationFileOut,
+                                    Util.DEFAULT_COPY_BUFFER_SIZE, srcFile.getContent().getSize(), copyStreamListener);
+                        }
+                        finally {
+                            destinationFileOut.close();
+                        }
+                    }
+                    finally {
+                        srcFile.close();
+                    }
+                }
+                else if (srcFile.getType().hasChildren()) {
+                    destFile.createFolder();
+                }
+            }
+            catch (final IOException e) {
+                throw new FileSystemException("vfs.provider/copy-file.error", new Object[] { srcFile, destFile }, e);
+            }
+        }
+    }
+
+
+    /**
+     * Compares credential of source and destination FileObject and return true if they are equals. This helps to copy file
+     * directly between buckets for same google storage project
+     *
+     * @param sourceFileObject
+     * @return
+     */
+    private boolean canCopyServerSide(FileObject sourceFileObject) {
+
+        if (sourceFileObject instanceof GCSFileObject) {
+            GCSFileObject gcsFileObject = (GCSFileObject) sourceFileObject;
+
+            Credentials sourceCredential = null;
+
+            if (gcsFileObject.storage != null && gcsFileObject.storage.getOptions() != null) {
+                sourceCredential = gcsFileObject.storage.getOptions().getCredentials();
+            }
+
+            Credentials destinationCredential = null;
+            if (this.storage != null && this.storage.getOptions() != null) {
+                destinationCredential = this.storage.getOptions().getCredentials();
+            }
+
+            if (sourceCredential != null
+                    && destinationCredential != null
+                    && sourceCredential.equals(destinationCredential)) {
+
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Returns false to reply on copyFrom method in case moving/copying file within same google storage project
+     *
+     * @param fileObject
+     * @return
+     */
+    public boolean canRenameTo(FileObject fileObject) {
+
+        return false;
+    }
 }
