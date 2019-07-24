@@ -29,11 +29,15 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 
 /**
@@ -105,6 +109,7 @@ public class GCSFileObject extends AbstractFileObject {
         }
 
         Blob blob = bucket.get(path);
+
         if (blob != null && blob.exists()) {
             log.debug(format("File :%s exists on bucket", this.getName()));
             return FileType.FILE;
@@ -493,5 +498,26 @@ public class GCSFileObject extends AbstractFileObject {
     public boolean canRenameTo(FileObject fileObject) {
 
         return false;
+    }
+
+
+    /**
+     * Generate signed url to directly access file.
+     *
+     * @param duration - in seconds
+     * @return
+     * @throws Exception
+     */
+    public URL signedURL(long duration) throws Exception {
+
+        if (isNull(this.currentBlob)) {
+            this.doAttach();
+        }
+
+        if (nonNull(this.currentBlob)) {
+            return this.currentBlob.signUrl(duration, TimeUnit.SECONDS);
+        }
+
+        return null;
     }
 }
