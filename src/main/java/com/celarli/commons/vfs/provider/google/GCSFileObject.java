@@ -104,7 +104,7 @@ public class GCSFileObject extends AbstractFileObject {
 
         String path = urlFileName.getPath();
 
-        if (path.startsWith("/")) {
+        if (!path.equals("/") && path.startsWith("/")) {
             path = path.substring(1);
         }
 
@@ -120,16 +120,16 @@ public class GCSFileObject extends AbstractFileObject {
             // Here's the trick for folders.
             //
             // Do a listing on that prefix.  If it returns anything, after not existing, then it's a folder.
-            String prefix = computePrefix(urlFileName);
+            String url = computePostfix(urlFileName);
             log.debug(format("File does not :%s exists on bucket try to see if it's a directory", this.getName()));
             Page<Blob> blobs;
-            if (prefix.equals("/")) {
+            if (url.equals("/")) {
                 // Special root path case. List the root blobs with no prefix
                 return FileType.FOLDER;
             }
             else {
-                log.debug(format("listing directory :%s", prefix));
-                blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(prefix));
+                log.debug(format("listing directory :%s", url));
+                blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(url));
             }
             if (blobs.getValues().iterator().hasNext()) {
                 return FileType.FOLDER;
@@ -151,19 +151,17 @@ public class GCSFileObject extends AbstractFileObject {
             throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
         }
 
-        String prefix = computePrefix(urlFileName);
-
-        if (prefix.startsWith("/")) {
-            prefix = prefix.substring(1);
+        String url = computePostfix(urlFileName);
+        if (url.startsWith("/")) {
+            url = url.substring(1);
         }
 
-        Page<Blob> blobs = bucket.list(Storage.BlobListOption.currentDirectory(),
-                Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(url));
 
         List<String> childrenList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
             String name = blob.getName();
-            if (!name.equalsIgnoreCase(prefix)) {
+            if (!name.equalsIgnoreCase(url)) {
                 childrenList.add("/" + name);
             }
         }
@@ -174,13 +172,13 @@ public class GCSFileObject extends AbstractFileObject {
 
 
     @Nonnull
-    private String computePrefix(@Nonnull URLFileName urlFileName) {
+    private String computePostfix(@Nonnull URLFileName urlFileName) {
 
-        String prefix = urlFileName.getPath();
-        if (!prefix.endsWith("/")) {
-            prefix += "/";
+        String postfix = urlFileName.getPath();
+        if (!postfix.endsWith("/")) {
+            postfix += "/";
         }
-        return prefix;
+        return postfix;
     }
 
 
@@ -239,7 +237,7 @@ public class GCSFileObject extends AbstractFileObject {
 
         String path = urlFileName.getPath();
 
-        if (path.startsWith("/")) {
+        if (!path.equals("/") && path.startsWith("/")) {
             path = path.substring(1);
         }
         this.currentBlob = bucket.get(path);
@@ -267,7 +265,7 @@ public class GCSFileObject extends AbstractFileObject {
 
         URLFileName urlFileName = (URLFileName) this.getName();
         String path = urlFileName.getPath();
-        if (path.startsWith("/")) {
+        if (!path.equals("/") && path.startsWith("/")) {
             path = path.substring(1);
         }
 
@@ -360,7 +358,7 @@ public class GCSFileObject extends AbstractFileObject {
         if (canCopyServerSide(file)) {
             URLFileName urlFileName = (URLFileName) this.getName();
             String path = urlFileName.getPath();
-            if (path.startsWith("/")) {
+            if (!path.equals("/") && path.startsWith("/")) {
                 path = path.substring(1);
             }
 
