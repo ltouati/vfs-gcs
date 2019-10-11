@@ -361,19 +361,15 @@ public class GCSFileObject extends AbstractFileObject {
             if (!path.equals("/") && path.startsWith("/")) {
                 path = path.substring(1);
             }
-
             String bucket = urlFileName.getHostName();
-
             GCSFileObject gcsFile = (GCSFileObject) file;
-
             CopyWriter copyWriter = gcsFile.currentBlob.copyTo(BlobId.of(bucket, path));
-
             try {
                 //Need to reset file type after copy operation
                 this.injectType(this.doGetType());
             }
             catch (Exception e) {
-                e.printStackTrace();
+                //swallowed intentionally to continue working further
             }
 
             //Current blob is now copied one
@@ -427,18 +423,11 @@ public class GCSFileObject extends AbstractFileObject {
             // Copy across
             try {
                 if (srcFile.getType().hasContent()) {
-                    try {
-                        OutputStream destinationFileOut = destFile.getContent().getOutputStream();
-                        try {
-                            Util.copyStream(srcFile.getContent().getInputStream(), destinationFileOut,
-                                    Util.DEFAULT_COPY_BUFFER_SIZE, srcFile.getContent().getSize(), copyStreamListener);
-                        }
-                        finally {
-                            destinationFileOut.close();
-                        }
-                    }
-                    finally {
-                        srcFile.close();
+                    try (InputStream inputStream = srcFile.getContent().getInputStream();
+                            OutputStream outputStream = destFile.getContent().getOutputStream()) {
+
+                        Util.copyStream(inputStream, outputStream,
+                                Util.DEFAULT_COPY_BUFFER_SIZE, srcFile.getContent().getSize(), copyStreamListener);
                     }
                 }
                 else if (srcFile.getType().hasChildren()) {
@@ -486,7 +475,6 @@ public class GCSFileObject extends AbstractFileObject {
         return false;
     }
 
-
     /**
      * Returns false to reply on copyFrom method in case moving/copying file within same google storage project
      *
@@ -494,10 +482,8 @@ public class GCSFileObject extends AbstractFileObject {
      * @return
      */
     public boolean canRenameTo(FileObject fileObject) {
-
         return false;
     }
-
 
     /**
      * Generate signed url to directly access file.
@@ -507,7 +493,6 @@ public class GCSFileObject extends AbstractFileObject {
      * @throws Exception
      */
     public URL signedURL(long duration) throws Exception {
-
         if (isNull(this.currentBlob)) {
             this.doAttach();
         }
