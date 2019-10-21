@@ -26,7 +26,7 @@ Here is an example using the API
         }
 
         DefaultFileSystemManager currMan = new DefaultFileSystemManager();
-        currMan.addProvider("gs", new GCSFileProvider());
+        currMan.addProvider("gcs", new GCSFileProvider());
         currMan.addProvider("file", new DefaultLocalFileProvider());
         currMan.init();
 
@@ -34,7 +34,7 @@ Here is an example using the API
         currFileNameStr = "test01.tmp";
         String bucket = "gcp-ltouati-2";
         String currUriStr = String.format("%s://%s/%s",
-                                          "gs", bucket, currFileNameStr);
+                                          "gcs", bucket, currFileNameStr);
 
 // Resolve the imaginary file remotely.  So we have a file object
         FileObject currFile = currMan.resolveFile(currUriStr);

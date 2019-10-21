@@ -28,12 +28,12 @@ public class GCSFileOperationTest {
         }
 
         DefaultFileSystemManager fileSystemManager = new DefaultFileSystemManager();
-        fileSystemManager.addProvider("gs", new GCSFileProvider());
+        fileSystemManager.addProvider("gcs", new GCSFileProvider());
         fileSystemManager.init();
 
         // Create a URL for creating this remote file
         String bucket = "npd-test";
-        String currUriStr = String.format("%s://%s/%s", "gs", bucket, fileName);
+        String currUriStr = String.format("%s://%s/%s", "gcs", bucket, fileName);
 
         FileSystemOptions fileSystemOptions = new FileSystemOptions();
         GcsFileSystemConfigBuilder.getInstance().setClientType(fileSystemOptions, 1);
