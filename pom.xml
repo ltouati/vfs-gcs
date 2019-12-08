@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.celarli.commons</groupId>
   <artifactId>vfs-gcs</artifactId>
-  <version>1.0.7</version>
+  <version>1.0.8</version>
 
   <name>${project.groupId}:${project.artifactId}</name>
   <description>Google Cloud Storage Provider for the Apache Commons VFS library.</description>
@@ -33,7 +31,11 @@
   </scm>
 
   <packaging>jar</packaging>
-
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>9</version>
+  </parent>
   <profiles>
     <profile>
       <id>release-sign-artifacts</id>
@@ -43,13 +45,6 @@
           <value>true</value>
         </property>
       </activation>
-
-      <distributionManagement>
-        <snapshotRepository>
-          <id>ossrh</id>
-          <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-      </distributionManagement>
 
       <build>
         <plugins>
