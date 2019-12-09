@@ -128,6 +128,12 @@ public class GCSFileObject extends AbstractFileObject {
                 return FileType.FOLDER;
             }
             else {
+
+                //blobs are not listed if url starts with /.
+                if (url.startsWith("/")) {
+                    url = url.substring(1);
+                }
+
                 log.debug(format("listing directory :%s", url));
                 blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(url));
             }
@@ -264,7 +270,14 @@ public class GCSFileObject extends AbstractFileObject {
     private void getCurrentBlob(boolean detectContentType) {
 
         URLFileName urlFileName = (URLFileName) this.getName();
+
         String path = urlFileName.getPath();
+
+        //while deleting files recursively, empty folders are not being deleted if path doesn't ends with /.
+        if (urlFileName != null && urlFileName.getType() == FileType.FOLDER) {
+            path = computePostfix(urlFileName);
+        }
+
         if (!path.equals("/") && path.startsWith("/")) {
             path = path.substring(1);
         }
@@ -475,6 +488,7 @@ public class GCSFileObject extends AbstractFileObject {
         return false;
     }
 
+
     /**
      * Returns false to reply on copyFrom method in case moving/copying file within same google storage project
      *
@@ -482,8 +496,10 @@ public class GCSFileObject extends AbstractFileObject {
      * @return
      */
     public boolean canRenameTo(FileObject fileObject) {
+
         return false;
     }
+
 
     /**
      * Generate signed url to directly access file.
@@ -493,6 +509,7 @@ public class GCSFileObject extends AbstractFileObject {
      * @throws Exception
      */
     public URL signedURL(long duration) throws Exception {
+
         if (isNull(this.currentBlob)) {
             this.doAttach();
         }
