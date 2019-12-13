@@ -1,3 +1,8 @@
+# Dalet fork
+The purpose of this fork is to maintain any changes made by Dalet, until those changes are merged upstream.
+From this fork we publish artifacts to JCenter; instead of `com.celarli.commons:vfs-gcs` the artifacts are named
+`com.dalet.celarli.commons:vfs-gcs` to make clear their different origin.
+
 # vfs-gcs
 Google Cloud Storage provider for Apache Commons VFS - http://commons.apache.org/proper/commons-vfs/
 
