@@ -3,6 +3,16 @@ The purpose of this fork is to maintain any changes made by Dalet, until those c
 From this fork we publish artifacts to JCenter; instead of `com.celarli.commons:vfs-gcs` the artifacts are named
 `com.dalet.celarli.commons:vfs-gcs` to make clear their different origin.
 
+## Versioning model
+The upstream repository owner seems reasonably responsive to PRs, so we derive our versioning model from the upstream
+version, as follows:
+-  Every push to master gets built and published
+-  The version number we publish (simply using git describe) is:
+      `<upstream version>-<number-of-commits-since>-g<hash-of-HEAD>`
+   For example, version `1.0.8-4-g604ac6d` implies a build of commit `604ac6d`, which is 4 commits on from the upstream
+   published version `1.0.8`.
+
+
 # vfs-gcs
 Google Cloud Storage provider for Apache Commons VFS - http://commons.apache.org/proper/commons-vfs/
 
