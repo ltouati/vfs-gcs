@@ -20,7 +20,6 @@ import org.apache.commons.vfs2.NameScope;
 import org.apache.commons.vfs2.Selectors;
 import org.apache.commons.vfs2.provider.AbstractFileName;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
-import org.apache.commons.vfs2.provider.URLFileName;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,18 +90,18 @@ public class GCSFileObject extends AbstractFileObject {
     protected FileType doGetType() throws Exception {
 
         log.debug("Trying to get file type for:" + this.getName());
-        URLFileName urlFileName = (URLFileName) this.getName();
+        GcsFileName fileName = (GcsFileName) this.getName();
 
-        if (urlFileName != null && urlFileName.getType() == FileType.FOLDER) {
+        if (fileName != null && fileName.getType() == FileType.FOLDER) {
             return FileType.FOLDER;
         }
 
-        Bucket bucket = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(fileName.getBucket());
         if (bucket == null || !bucket.exists()) {
-            throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
+            throw new IllegalArgumentException(format("Bucket %s does not exists", fileName.getBucket()));
         }
 
-        String path = urlFileName.getPath();
+        String path = fileName.getPath();
 
         if (!path.equals("/") && path.startsWith("/")) {
             path = path.substring(1);
@@ -120,7 +119,7 @@ public class GCSFileObject extends AbstractFileObject {
             // Here's the trick for folders.
             //
             // Do a listing on that prefix.  If it returns anything, after not existing, then it's a folder.
-            String url = computePostfix(urlFileName);
+            String url = computePostfix(fileName);
             log.debug(format("File does not :%s exists on bucket try to see if it's a directory", this.getName()));
             Page<Blob> blobs;
             if (url.equals("/")) {
@@ -152,13 +151,13 @@ public class GCSFileObject extends AbstractFileObject {
 
         log.debug(format("Listing directory below:%s", this.getName().toString()));
 
-        URLFileName urlFileName = (URLFileName) this.getName();
-        Bucket bucket = this.storage.get(urlFileName.getHostName());
+        GcsFileName fileName = (GcsFileName) this.getName();
+        Bucket bucket = this.storage.get(fileName.getBucket());
         if (bucket == null || !bucket.exists()) {
-            throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
+            throw new IllegalArgumentException(format("Bucket %s does not exists", fileName.getBucket()));
         }
 
-        String path = computePostfix(urlFileName);
+        String path = computePostfix(fileName);
         if (path.startsWith("/")) {
             path = path.substring(1);
         }
@@ -181,9 +180,9 @@ public class GCSFileObject extends AbstractFileObject {
 
 
     @Nonnull
-    private String computePostfix(@Nonnull URLFileName urlFileName) {
+    private String computePostfix(@Nonnull GcsFileName fileName) {
 
-        String postfix = urlFileName.getPath();
+        String postfix = fileName.getPath();
         if (!postfix.endsWith("/")) {
             postfix += "/";
         }
@@ -236,15 +235,15 @@ public class GCSFileObject extends AbstractFileObject {
     @Override
     protected void doAttach() throws Exception {
 
-        URLFileName urlFileName = (URLFileName) this.getName();
+        GcsFileName fileName = (GcsFileName) this.getName();
 
-        Bucket bucket = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(fileName.getBucket());
 
         if (bucket == null || !bucket.exists()) {
-            throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
+            throw new IllegalArgumentException(format("Bucket %s does not exists", fileName.getBucket()));
         }
 
-        String path = urlFileName.getPath();
+        String path = fileName.getPath();
 
         if (!path.equals("/") && path.startsWith("/")) {
             path = path.substring(1);
@@ -272,13 +271,13 @@ public class GCSFileObject extends AbstractFileObject {
 
     private void getCurrentBlob(boolean detectContentType) {
 
-        URLFileName urlFileName = (URLFileName) this.getName();
+        GcsFileName fileName = (GcsFileName) this.getName();
 
-        String path = urlFileName.getPath();
+        String path = fileName.getPath();
 
         //while deleting files recursively, empty folders are not being deleted if path doesn't ends with /.
-        if (urlFileName != null && urlFileName.getType() == FileType.FOLDER) {
-            path = computePostfix(urlFileName);
+        if (fileName != null && fileName.getType() == FileType.FOLDER) {
+            path = computePostfix(fileName);
         }
 
         if (!path.equals("/") && path.startsWith("/")) {
@@ -287,13 +286,13 @@ public class GCSFileObject extends AbstractFileObject {
 
         BlobInfo blobInfo;
         if (detectContentType) {
-            String fileName = getName().getBaseName();
-            String contentType = tika.detect(fileName);
+            String baseName = getName().getBaseName();
+            String contentType = tika.detect(baseName);
 
-            blobInfo = BlobInfo.newBuilder(urlFileName.getHostName(), path).setContentType(contentType).build();
+            blobInfo = BlobInfo.newBuilder(fileName.getBucket(), path).setContentType(contentType).build();
         }
         else {
-            blobInfo = BlobInfo.newBuilder(urlFileName.getHostName(), path).build();
+            blobInfo = BlobInfo.newBuilder(fileName.getBucket(), path).build();
         }
 
         this.currentBlob = storage.create(blobInfo);
@@ -372,12 +371,12 @@ public class GCSFileObject extends AbstractFileObject {
         }
 
         if (canCopyServerSide(file)) {
-            URLFileName urlFileName = (URLFileName) this.getName();
-            String path = urlFileName.getPath();
+            GcsFileName fileName = (GcsFileName) this.getName();
+            String path = fileName.getPath();
             if (!path.equals("/") && path.startsWith("/")) {
                 path = path.substring(1);
             }
-            String bucket = urlFileName.getHostName();
+            String bucket = fileName.getBucket();
             GCSFileObject gcsFile = (GCSFileObject) file;
             CopyWriter copyWriter = gcsFile.currentBlob.copyTo(BlobId.of(bucket, path));
             try {
