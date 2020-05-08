@@ -81,4 +81,23 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
 
         return (Integer) getParam(opts, "clientType");
     }
+
+
+    /**
+     * Set the CMK, will be used while creating new storage item
+     */
+    public void setCmk(FileSystemOptions opts, String cmk) {
+
+        setParam(opts, "cmk", cmk);
+    }
+
+
+    /**
+     * Get the CMK, will be used while creating new storage item
+     */
+    public String getCmk(FileSystemOptions opts) {
+
+        return (String) getParam(opts, "cmk");
+    }
+
 }

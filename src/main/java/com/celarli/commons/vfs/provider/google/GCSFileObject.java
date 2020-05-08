@@ -15,6 +15,7 @@ import org.apache.commons.vfs2.FileNotFolderException;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSelector;
 import org.apache.commons.vfs2.FileSystemException;
+import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.NameScope;
 import org.apache.commons.vfs2.Selectors;
@@ -295,7 +296,13 @@ public class GCSFileObject extends AbstractFileObject {
             blobInfo = BlobInfo.newBuilder(fileName.getBucket(), path).build();
         }
 
-        this.currentBlob = storage.create(blobInfo);
+        String cmk = getCmk();
+        if (cmk != null) {
+            this.currentBlob = storage.create(blobInfo, Storage.BlobTargetOption.kmsKeyName(getCmk()));
+        }
+        else {
+            this.currentBlob = storage.create(blobInfo);
+        }
     }
 
 
@@ -518,6 +525,18 @@ public class GCSFileObject extends AbstractFileObject {
 
         if (nonNull(this.currentBlob)) {
             return this.currentBlob.signUrl(duration, TimeUnit.SECONDS);
+        }
+
+        return null;
+    }
+
+
+    private String getCmk() {
+
+        FileSystemOptions options = getFileSystem().getFileSystemOptions();
+
+        if (options != null) {
+            return GcsFileSystemConfigBuilder.getInstance().getCmk(options);
         }
 
         return null;
