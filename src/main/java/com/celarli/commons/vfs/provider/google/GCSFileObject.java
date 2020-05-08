@@ -296,9 +296,9 @@ public class GCSFileObject extends AbstractFileObject {
             blobInfo = BlobInfo.newBuilder(fileName.getBucket(), path).build();
         }
 
-        String cmk = getCmk();
-        if (cmk != null) {
-            this.currentBlob = storage.create(blobInfo, Storage.BlobTargetOption.kmsKeyName(getCmk()));
+        String cmkId = getCmkId();
+        if (cmkId != null) {
+            this.currentBlob = storage.create(blobInfo, Storage.BlobTargetOption.kmsKeyName(cmkId));
         }
         else {
             this.currentBlob = storage.create(blobInfo);
@@ -531,12 +531,12 @@ public class GCSFileObject extends AbstractFileObject {
     }
 
 
-    private String getCmk() {
+    private String getCmkId() {
 
         FileSystemOptions options = getFileSystem().getFileSystemOptions();
 
         if (options != null) {
-            return GcsFileSystemConfigBuilder.getInstance().getCmk(options);
+            return GcsFileSystemConfigBuilder.getInstance().getCmkId(options);
         }
 
         return null;

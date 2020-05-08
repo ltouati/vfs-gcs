@@ -84,20 +84,20 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
 
 
     /**
-     * Set the CMK, will be used while creating new storage item
+     * Set the CMK id, will be used while creating new storage item
      */
-    public void setCmk(FileSystemOptions opts, String cmk) {
+    public void setCmkId(FileSystemOptions opts, String cmkId) {
 
-        setParam(opts, "cmk", cmk);
+        setParam(opts, "cmkId", cmkId);
     }
 
 
     /**
-     * Get the CMK, will be used while creating new storage item
+     * Get the CMK id, will be used while creating new storage item
      */
-    public String getCmk(FileSystemOptions opts) {
+    public String getCmkId(FileSystemOptions opts) {
 
-        return (String) getParam(opts, "cmk");
+        return (String) getParam(opts, "cmkId");
     }
 
 }
