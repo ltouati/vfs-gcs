@@ -96,8 +96,6 @@ public class GCSFileObject extends AbstractFileObject {
     @Override
     protected FileType doGetType() throws Exception {
 
-        log.debug("Trying to get file type for:" + this.getName());
-
         GcsFileName fileName = (GcsFileName) this.getName();
 
         if (fileName != null && fileName.getType() == FileType.FOLDER) {
@@ -124,9 +122,7 @@ public class GCSFileObject extends AbstractFileObject {
         }
         else {
             // GCS does not have folders.  Just files with path separators in their names.
-
-            // Here's the trick for folders.
-            //
+            // Here's the trick for folders:
             // Do a listing on that prefix.  If it returns anything, after not existing, then it's a folder.
             String url = computePostfix(fileName);
 
@@ -149,6 +145,7 @@ public class GCSFileObject extends AbstractFileObject {
 
                 blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(url));
             }
+
             if (blobs.getValues().iterator().hasNext()) {
                 return FileType.FOLDER;
             }
@@ -195,6 +192,18 @@ public class GCSFileObject extends AbstractFileObject {
         children.toArray(childrenArray);
 
         return childrenArray;
+    }
+
+
+    public boolean exists() throws FileSystemException {
+
+        try {
+            FileType type = this.doGetType();
+            return FileType.IMAGINARY != type;
+        }
+        catch (Exception e) {
+            throw new FileSystemException(e);
+        }
     }
 
 
@@ -301,8 +310,13 @@ public class GCSFileObject extends AbstractFileObject {
 
     @Override
     protected void doDelete() throws Exception {
+
         doAttach();
-        this.currentBlob.delete();
+
+        // Guard against deleting imaginary files.
+        if (this.currentBlob != null) {
+            this.currentBlob.delete();
+        }
     }
 
 
