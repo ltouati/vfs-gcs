@@ -1,3 +1,9 @@
+# This fork is deprecated
+
+The deltas on this fork have been moved to https://github.com/dalet-oss/vfs-gcs/, and ongoing development will
+continue there.
+
+
 # vfs-gcs
 Google Cloud Storage provider for Apache Commons VFS - http://commons.apache.org/proper/commons-vfs/
 
