@@ -3,6 +3,7 @@ package com.celarli.commons.vfs.provider.google;
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
 import com.google.cloud.ReadChannel;
+import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -15,17 +16,18 @@ import org.apache.commons.vfs2.FileNotFolderException;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSelector;
 import org.apache.commons.vfs2.FileSystemException;
+import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.NameScope;
 import org.apache.commons.vfs2.Selectors;
 import org.apache.commons.vfs2.provider.AbstractFileName;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
-import org.apache.commons.vfs2.provider.URLFileName;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +48,10 @@ import static java.util.Objects.nonNull;
 public class GCSFileObject extends AbstractFileObject {
 
     private static final Logger log = LoggerFactory.getLogger(GCSFileObject.class);
+
+    public static int COPY_BUFFER_SIZE = 32 * 1024 * 1024; // 16MB
+    public static final String PATH_DELIMITER = "/";
+
     /**
      * The GCS client
      */
@@ -90,21 +96,21 @@ public class GCSFileObject extends AbstractFileObject {
     @Override
     protected FileType doGetType() throws Exception {
 
-        log.debug("Trying to get file type for:" + this.getName());
-        URLFileName urlFileName = (URLFileName) this.getName();
+        GcsFileName fileName = (GcsFileName) this.getName();
 
-        if (urlFileName != null && urlFileName.getType() == FileType.FOLDER) {
+        if (fileName != null && fileName.getType() == FileType.FOLDER) {
             return FileType.FOLDER;
         }
 
-        Bucket bucket = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(fileName.getBucket());
+
         if (bucket == null || !bucket.exists()) {
-            throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
+            throw new IllegalArgumentException(format("Bucket %s does not exists", fileName.getBucket()));
         }
 
-        String path = urlFileName.getPath();
+        String path = fileName.getPath();
 
-        if (!path.equals("/") && path.startsWith("/")) {
+        if (!path.equals(PATH_DELIMITER) && path.startsWith(PATH_DELIMITER)) {
             path = path.substring(1);
         }
 
@@ -116,33 +122,36 @@ public class GCSFileObject extends AbstractFileObject {
         }
         else {
             // GCS does not have folders.  Just files with path separators in their names.
-
-            // Here's the trick for folders.
-            //
+            // Here's the trick for folders:
             // Do a listing on that prefix.  If it returns anything, after not existing, then it's a folder.
-            String url = computePostfix(urlFileName);
+            String url = computePostfix(fileName);
+
             log.debug(format("File does not :%s exists on bucket try to see if it's a directory", this.getName()));
+
             Page<Blob> blobs;
-            if (url.equals("/")) {
+
+            if (url.equals(PATH_DELIMITER)) {
                 // Special root path case. List the root blobs with no prefix
                 return FileType.FOLDER;
             }
             else {
 
                 //blobs are not listed if url starts with /.
-                if (url.startsWith("/")) {
+                if (url.startsWith(PATH_DELIMITER)) {
                     url = url.substring(1);
                 }
 
                 log.debug(format("listing directory :%s", url));
+
                 blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(url));
             }
+
             if (blobs.getValues().iterator().hasNext()) {
                 return FileType.FOLDER;
             }
         }
-        return FileType.IMAGINARY;
 
+        return FileType.IMAGINARY;
     }
 
 
@@ -151,39 +160,62 @@ public class GCSFileObject extends AbstractFileObject {
     protected String[] doListChildren() throws Exception {
 
         log.debug(format("Listing directory below:%s", this.getName().toString()));
-        URLFileName urlFileName = (URLFileName) this.getName();
-        Bucket bucket = this.storage.get(urlFileName.getHostName());
+
+        GcsFileName fileName = (GcsFileName) this.getName();
+        Bucket bucket = this.storage.get(fileName.getBucket());
+
         if (bucket == null || !bucket.exists()) {
-            throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
+            throw new IllegalArgumentException(format("Bucket %s does not exists", fileName.getBucket()));
         }
 
-        String url = computePostfix(urlFileName);
-        if (url.startsWith("/")) {
-            url = url.substring(1);
+        String path = computePostfix(fileName);
+
+        if (path.startsWith(PATH_DELIMITER)) {
+            path = path.substring(1);
         }
 
-        Page<Blob> blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(url));
+        Page<Blob> blobs = bucket.list(Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(path));
 
-        List<String> childrenList = new ArrayList<>();
+        List<String> children = new ArrayList<>();
+
         for (Blob blob : blobs.iterateAll()) {
+
             String name = blob.getName();
-            if (!name.equalsIgnoreCase(url)) {
-                childrenList.add("/" + name);
+
+            if (!name.equalsIgnoreCase(path)) {
+                String strippedName = name.substring(path.length());
+                children.add(strippedName);
             }
         }
-        String[] ret = new String[childrenList.size()];
-        childrenList.toArray(ret);
-        return ret;
+
+        String[] childrenArray = new String[children.size()];
+        children.toArray(childrenArray);
+
+        return childrenArray;
+    }
+
+
+    public boolean exists() throws FileSystemException {
+
+        try {
+            FileType type = this.doGetType();
+            return FileType.IMAGINARY != type;
+        }
+        catch (Exception e) {
+            throw new FileSystemException(e);
+        }
     }
 
 
     @Nonnull
-    private String computePostfix(@Nonnull URLFileName urlFileName) {
+    private String computePostfix(@Nonnull GcsFileName fileName) {
 
-        String postfix = urlFileName.getPath();
-        if (!postfix.endsWith("/")) {
-            postfix += "/";
+        String postfix = fileName.getPath();
+
+        if (!postfix.endsWith(PATH_DELIMITER)) {
+            postfix += PATH_DELIMITER;
         }
+
         return postfix;
     }
 
@@ -200,7 +232,33 @@ public class GCSFileObject extends AbstractFileObject {
     protected InputStream doGetInputStream() throws Exception {
 
         final ReadChannel readChannel = this.storage.reader(this.currentBlob.getBlobId());
+        readChannel.setChunkSize(COPY_BUFFER_SIZE);
+
         return Channels.newInputStream(readChannel);
+    }
+
+
+    @Nonnull
+    @Override
+    protected OutputStream doGetOutputStream(boolean bAppend) {
+
+        createBlob(true);
+
+        String cmkId = getCmkId();
+
+        WriteChannel wc;
+
+        if (cmkId != null) {
+            wc = this.currentBlob.writer(Storage.BlobWriteOption.disableGzipContent(),
+                    Storage.BlobWriteOption.kmsKeyName(cmkId));
+        }
+        else {
+            wc = this.currentBlob.writer(Storage.BlobWriteOption.disableGzipContent());
+        }
+
+        wc.setChunkSize(COPY_BUFFER_SIZE);
+
+        return Channels.newOutputStream(wc);
     }
 
 
@@ -233,19 +291,20 @@ public class GCSFileObject extends AbstractFileObject {
     @Override
     protected void doAttach() throws Exception {
 
-        URLFileName urlFileName = (URLFileName) this.getName();
+        GcsFileName fileName = (GcsFileName) this.getName();
 
-        Bucket bucket = this.storage.get(urlFileName.getHostName());
+        Bucket bucket = this.storage.get(fileName.getBucket());
 
         if (bucket == null || !bucket.exists()) {
-            throw new IllegalArgumentException(format("Bucket %s does not exists", urlFileName.getHostName()));
+            throw new IllegalArgumentException(format("Bucket %s does not exists", fileName.getBucket()));
         }
 
-        String path = urlFileName.getPath();
+        String path = fileName.getPath();
 
-        if (!path.equals("/") && path.startsWith("/")) {
+        if (!path.equals(PATH_DELIMITER) && path.startsWith(PATH_DELIMITER)) {
             path = path.substring(1);
         }
+
         this.currentBlob = bucket.get(path);
     }
 
@@ -253,53 +312,51 @@ public class GCSFileObject extends AbstractFileObject {
     @Override
     protected void doDelete() throws Exception {
 
-        getCurrentBlob();
-        this.currentBlob.delete();
+        doAttach();
+
+        // Guard against deleting imaginary files.
+        if (this.currentBlob != null) {
+            this.currentBlob.delete();
+        }
     }
 
 
-    @Nonnull
-    @Override
-    protected OutputStream doGetOutputStream(boolean bAppend) {
+    private void createBlob(boolean detectContentType) {
 
-        getCurrentBlob(true);
-        return Channels.newOutputStream(this.currentBlob.writer());
-    }
+        GcsFileName fileName = (GcsFileName) this.getName();
 
+        String path = fileName.getPath();
 
-    private void getCurrentBlob(boolean detectContentType) {
-
-        URLFileName urlFileName = (URLFileName) this.getName();
-
-        String path = urlFileName.getPath();
-
-        //while deleting files recursively, empty folders are not being deleted if path doesn't ends with /.
-        if (urlFileName != null && urlFileName.getType() == FileType.FOLDER) {
-            path = computePostfix(urlFileName);
+        // While deleting files recursively empty folders are not being deleted if path doesn't ends with /
+        if (fileName.getType() == FileType.FOLDER) {
+            path = computePostfix(fileName);
         }
 
-        if (!path.equals("/") && path.startsWith("/")) {
+        if (!path.equals(PATH_DELIMITER) && path.startsWith(PATH_DELIMITER)) {
             path = path.substring(1);
         }
 
         BlobInfo blobInfo;
-        if (detectContentType) {
-            String fileName = getName().getBaseName();
-            String contentType = tika.detect(fileName);
 
-            blobInfo = BlobInfo.newBuilder(urlFileName.getHostName(), path).setContentType(contentType).build();
+        if (detectContentType) {
+
+            String baseName = getName().getBaseName();
+            String contentType = tika.detect(baseName);
+
+            blobInfo = BlobInfo.newBuilder(fileName.getBucket(), path).setContentType(contentType).build();
         }
         else {
-            blobInfo = BlobInfo.newBuilder(urlFileName.getHostName(), path).build();
+            blobInfo = BlobInfo.newBuilder(fileName.getBucket(), path).build();
         }
 
-        this.currentBlob = storage.create(blobInfo);
-    }
+        String cmkId = getCmkId();
 
-
-    private void getCurrentBlob() {
-
-        getCurrentBlob(false);
+        if (cmkId != null) {
+            this.currentBlob = storage.create(blobInfo, Storage.BlobTargetOption.kmsKeyName(cmkId));
+        }
+        else {
+            this.currentBlob = storage.create(blobInfo);
+        }
     }
 
 
@@ -369,35 +426,68 @@ public class GCSFileObject extends AbstractFileObject {
         }
 
         if (canCopyServerSide(file)) {
-            URLFileName urlFileName = (URLFileName) this.getName();
-            String path = urlFileName.getPath();
-            if (!path.equals("/") && path.startsWith("/")) {
-                path = path.substring(1);
-            }
-            String bucket = urlFileName.getHostName();
-            GCSFileObject gcsFile = (GCSFileObject) file;
-            CopyWriter copyWriter = gcsFile.currentBlob.copyTo(BlobId.of(bucket, path));
-            try {
-                //Need to reset file type after copy operation
-                this.injectType(this.doGetType());
-            }
-            catch (Exception e) {
-                //swallowed intentionally to continue working further
-            }
 
-            //Current blob is now copied one
-            this.currentBlob = copyWriter.getResult();
+            // Locate the files to copy across
+            final ArrayList<FileObject> files = new ArrayList<>();
+            file.findFiles(selector, false, files);
+
+            // Copy everything across
+            final int numFiles = files.size();
+
+            for (int i = 0; i < numFiles; i++) {
+
+                final GCSFileObject srcFile = (GCSFileObject) files.get(i);
+
+                // Determine the destination file
+                final String relPath = file.getName().getRelativeName(srcFile.getName());
+                final GCSFileObject destFile = (GCSFileObject) resolveFile(relPath, NameScope.DESCENDENT_OR_SELF);
+
+                // Clean up the destination file, if necessary
+                if (destFile.exists() && destFile.getType() != srcFile.getType()) {
+                    // The destination file exists, and is not of the same type, so delete it
+                    // TODO - add a pluggable policy for deleting and overwriting existing files
+                    destFile.delete(Selectors.SELECT_ALL);
+                }
+
+                // Copy across
+                try {
+                    if (srcFile.getType().hasContent()) {
+                        GcsFileName destFileName = (GcsFileName) destFile.getName();
+                        String path = destFileName.getPath();
+
+                        if (!path.equals(PATH_DELIMITER) && path.startsWith(PATH_DELIMITER)) {
+                            path = path.substring(1);
+                        }
+
+                        String bucket = destFileName.getBucket();
+                        srcFile.attachIfRequired();
+                        CopyWriter copyWriter = srcFile.currentBlob.copyTo(BlobId.of(bucket, path));
+
+                        try {
+                            //Need to reset file type after copy operation
+                            destFile.injectType(destFile.doGetType());
+                        }
+                        catch (Exception e) {
+                            //swallowed intentionally to continue working further
+                        }
+
+                        //Current blob is now copied one
+                        destFile.currentBlob = copyWriter.getResult();
+                    }
+                    else if (srcFile.getType().hasChildren()) {
+                        destFile.createFolder();
+                    }
+                }
+                catch (final IOException e) {
+                    throw new FileSystemException("vfs.provider/copy-file.error", new Object[] { srcFile, destFile }, e);
+                }
+            }
         }
         else {
-            copyThroughStream(file, selector, copyStreamListener);
+            streamCopy(file, selector, copyStreamListener);
 
-            try {
-                //Required to refresh blob once it is copied to get updated metadata of blob, i.e. size
-                this.doAttach();
-            }
-            catch (Exception e) {
-                //swallowed intentionally to continue working further
-            }
+            //Required to refresh blob once it is copied to get updated metadata of blob, i.e. size
+            this.attachIfRequired();
         }
     }
 
@@ -410,16 +500,18 @@ public class GCSFileObject extends AbstractFileObject {
      * @param copyStreamListener
      * @throws FileSystemException
      */
-    private void copyThroughStream(FileObject file, FileSelector selector, CopyStreamListener copyStreamListener)
+    private void streamCopy(FileObject file, FileSelector selector, CopyStreamListener copyStreamListener)
             throws FileSystemException {
 
         // Locate the files to copy across
-        final ArrayList<FileObject> files = new ArrayList();
+        final ArrayList<FileObject> files = new ArrayList<>();
         file.findFiles(selector, false, files);
 
         // Copy everything across
-        final int count = files.size();
-        for (int i = 0; i < count; i++) {
+        final int numFiles = files.size();
+
+        for (int i = 0; i < numFiles; i++) {
+
             final FileObject srcFile = files.get(i);
 
             // Determine the destination file
@@ -436,11 +528,14 @@ public class GCSFileObject extends AbstractFileObject {
             // Copy across
             try {
                 if (srcFile.getType().hasContent()) {
-                    try (InputStream inputStream = srcFile.getContent().getInputStream();
+                    try (
+                            InputStream inputStream = srcFile.getContent().getInputStream();
                             OutputStream outputStream = destFile.getContent().getOutputStream()) {
-
-                        Util.copyStream(inputStream, outputStream,
-                                Util.DEFAULT_COPY_BUFFER_SIZE, srcFile.getContent().getSize(), copyStreamListener);
+                        Util.copyStream(
+                                new BufferedInputStream(inputStream, COPY_BUFFER_SIZE),
+                                outputStream,
+                                COPY_BUFFER_SIZE, srcFile.getContent().getSize(),
+                                copyStreamListener);
                     }
                 }
                 else if (srcFile.getType().hasChildren()) {
@@ -464,6 +559,7 @@ public class GCSFileObject extends AbstractFileObject {
     private boolean canCopyServerSide(FileObject sourceFileObject) {
 
         if (sourceFileObject instanceof GCSFileObject) {
+
             GCSFileObject gcsFileObject = (GCSFileObject) sourceFileObject;
 
             Credentials sourceCredential = null;
@@ -473,6 +569,7 @@ public class GCSFileObject extends AbstractFileObject {
             }
 
             Credentials destinationCredential = null;
+
             if (this.storage != null && this.storage.getOptions() != null) {
                 destinationCredential = this.storage.getOptions().getCredentials();
             }
@@ -495,6 +592,7 @@ public class GCSFileObject extends AbstractFileObject {
      * @param fileObject
      * @return
      */
+    @Override
     public boolean canRenameTo(FileObject fileObject) {
 
         return false;
@@ -510,12 +608,36 @@ public class GCSFileObject extends AbstractFileObject {
      */
     public URL signedURL(long duration) throws Exception {
 
-        if (isNull(this.currentBlob)) {
-            this.doAttach();
-        }
+        attachIfRequired();
 
         if (nonNull(this.currentBlob)) {
             return this.currentBlob.signUrl(duration, TimeUnit.SECONDS);
+        }
+
+        return null;
+    }
+
+
+    private void attachIfRequired() {
+
+        try {
+            if (isNull(this.currentBlob)) {
+                this.doAttach();
+            }
+        }
+        catch (Exception e) {
+            log.error("Failed to attach", e);
+            //swallowed intentionally to work further
+        }
+    }
+
+
+    private String getCmkId() {
+
+        FileSystemOptions options = getFileSystem().getFileSystemOptions();
+
+        if (options != null) {
+            return GcsFileSystemConfigBuilder.getInstance().getCmkId(options);
         }
 
         return null;
