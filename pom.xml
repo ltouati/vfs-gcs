@@ -170,12 +170,15 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.11</version>
+      <type>jar</type>
     </dependency>
+   
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-collections4</artifactId>
       <version>4.4</version>
     </dependency>
+    
     <dependency>
       <groupId>commons-net</groupId>
       <artifactId>commons-net</artifactId>
@@ -199,11 +202,13 @@
       <artifactId>log4j-slf4j-impl</artifactId>
       <version>2.14.0</version>
     </dependency>
+  
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>
       <version>2.14.0</version>
     </dependency>
+    
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
@@ -213,7 +218,7 @@
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
-      <version>1.22</version>
+      <version>1.24.1</version>
     </dependency>
 
     <!-- Test dependencies -->
