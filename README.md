@@ -16,7 +16,7 @@ This project is built using Travis CI.
 
 Published artifacts are available on Maven Central as `com.github.dalet-oss:vfs-gcs`.
 
-For the latest version, see https://github.com/dalet-oss/vfs-gcs/releases.
+For the latest version, see https://github.com/dalet-oss/vfs-gcs/tags.
 
 #### Note for maintainers:
 

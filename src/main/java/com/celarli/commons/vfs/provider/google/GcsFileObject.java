@@ -45,9 +45,9 @@ import static java.util.Objects.nonNull;
 /**
  * This class is in charge of bridging the gap between commons vfs and GCS
  */
-public class GCSFileObject extends AbstractFileObject {
+public class GcsFileObject extends AbstractFileObject<GcsFileSystem> {
 
-    private static final Logger log = LoggerFactory.getLogger(GCSFileObject.class);
+    private static final Logger log = LoggerFactory.getLogger(GcsFileObject.class);
 
     public static int COPY_BUFFER_SIZE = 32 * 1024 * 1024; // 16MB
     public static final String PATH_DELIMITER = "/";
@@ -71,7 +71,7 @@ public class GCSFileObject extends AbstractFileObject {
      * @param fs      the file system object
      * @param storage the GCS client
      */
-    GCSFileObject(@Nonnull AbstractFileName name, @Nonnull GCSFileSystem fs, @Nonnull Storage storage) {
+    GcsFileObject(@Nonnull AbstractFileName name, @Nonnull GcsFileSystem fs, @Nonnull Storage storage) {
 
         super(name, fs);
         this.storage = storage;
@@ -436,11 +436,11 @@ public class GCSFileObject extends AbstractFileObject {
 
             for (int i = 0; i < numFiles; i++) {
 
-                final GCSFileObject srcFile = (GCSFileObject) files.get(i);
+                final GcsFileObject srcFile = (GcsFileObject) files.get(i);
 
                 // Determine the destination file
                 final String relPath = file.getName().getRelativeName(srcFile.getName());
-                final GCSFileObject destFile = (GCSFileObject) resolveFile(relPath, NameScope.DESCENDENT_OR_SELF);
+                final GcsFileObject destFile = (GcsFileObject) resolveFile(relPath, NameScope.DESCENDENT_OR_SELF);
 
                 // Clean up the destination file, if necessary
                 if (destFile.exists() && destFile.getType() != srcFile.getType()) {
@@ -479,7 +479,7 @@ public class GCSFileObject extends AbstractFileObject {
                     }
                 }
                 catch (final IOException e) {
-                    throw new FileSystemException("vfs.provider/copy-file.error", new Object[] { srcFile, destFile }, e);
+                    throw new FileSystemException("vfs.provider/copy-file.error", e, srcFile, destFile);
                 }
             }
         }
@@ -543,7 +543,7 @@ public class GCSFileObject extends AbstractFileObject {
                 }
             }
             catch (final IOException e) {
-                throw new FileSystemException("vfs.provider/copy-file.error", new Object[] { srcFile, destFile }, e);
+                throw new FileSystemException("vfs.provider/copy-file.error", e, srcFile, destFile);
             }
         }
     }
@@ -558,9 +558,9 @@ public class GCSFileObject extends AbstractFileObject {
      */
     private boolean canCopyServerSide(FileObject sourceFileObject) {
 
-        if (sourceFileObject instanceof GCSFileObject) {
+        if (sourceFileObject instanceof GcsFileObject) {
 
-            GCSFileObject gcsFileObject = (GCSFileObject) sourceFileObject;
+            GcsFileObject gcsFileObject = (GcsFileObject) sourceFileObject;
 
             Credentials sourceCredential = null;
 

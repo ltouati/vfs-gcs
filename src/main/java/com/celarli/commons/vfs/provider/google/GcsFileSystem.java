@@ -16,7 +16,7 @@ import java.util.Collection;
 /**
  * Implementation of a filesystem backed by a GCS bucket
  */
-public class GCSFileSystem extends AbstractFileSystem {
+public class GcsFileSystem extends AbstractFileSystem {
 
     /**
      * The GCS client
@@ -31,7 +31,7 @@ public class GCSFileSystem extends AbstractFileSystem {
      * @param fileSystemOptions the file system options
      * @param storage           the GCS client
      */
-    GCSFileSystem(@Nonnull FileName rootName, @Nullable FileSystemOptions fileSystemOptions, @Nonnull Storage storage) {
+    GcsFileSystem(@Nonnull FileName rootName, @Nullable FileSystemOptions fileSystemOptions, @Nonnull Storage storage) {
 
         super(rootName, null, fileSystemOptions);
         this.storage = storage;
@@ -49,7 +49,7 @@ public class GCSFileSystem extends AbstractFileSystem {
     @Override
     protected FileObject createFile(@Nonnull AbstractFileName abstractFileName) {
 
-        return new GCSFileObject(abstractFileName, this, storage);
+        return new GcsFileObject(abstractFileName, this, storage);
     }
 
 
@@ -61,7 +61,7 @@ public class GCSFileSystem extends AbstractFileSystem {
     @Override
     protected void addCapabilities(@Nonnull Collection<Capability> caps) {
 
-        caps.addAll(GCSFileProvider.capabilities);
+        caps.addAll(GcsFileProvider.capabilities);
     }
 
 }

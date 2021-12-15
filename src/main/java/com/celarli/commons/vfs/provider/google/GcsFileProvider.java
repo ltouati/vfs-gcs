@@ -15,7 +15,7 @@ import java.util.Collections;
 /**
  * A Commons VFS provider that allow connecting to the Google Cloud Storage
  */
-public class GCSFileProvider extends AbstractOriginatingFileProvider {
+public class GcsFileProvider extends AbstractOriginatingFileProvider {
 
     static final Collection<Capability> capabilities =
             Collections.unmodifiableCollection(Arrays.asList(Capability.GET_TYPE,
@@ -36,9 +36,9 @@ public class GCSFileProvider extends AbstractOriginatingFileProvider {
     @Override
     protected FileSystem doCreateFileSystem(FileName fileName, FileSystemOptions fileSystemOptions) {
 
-        Storage storage = GCSClientFactory.getClient(fileSystemOptions);
+        Storage storage = GcsClientFactory.getClient(fileSystemOptions);
 
-        return new GCSFileSystem(fileName, fileSystemOptions, storage);
+        return new GcsFileSystem(fileName, fileSystemOptions, storage);
     }
 
 
@@ -49,7 +49,7 @@ public class GCSFileProvider extends AbstractOriginatingFileProvider {
     }
 
 
-    public GCSFileProvider() {
+    public GcsFileProvider() {
 
         setFileNameParser(GcsFileNameParser.getInstance());
     }

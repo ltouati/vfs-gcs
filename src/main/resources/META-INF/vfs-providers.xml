@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <providers>
-    <provider class-name="com.celarli.commons.vfs.provider.google.GCSFileProvider">
+    <provider class-name="com.celarli.commons.vfs.provider.google.GcsFileProvider">
         <scheme name="gcs"/>
     </provider>
 </providers>

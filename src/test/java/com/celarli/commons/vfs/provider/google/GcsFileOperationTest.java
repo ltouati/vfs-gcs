@@ -11,7 +11,7 @@ import java.io.FileWriter;
 import java.util.UUID;
 
 
-public class GCSFileOperationTest {
+public class GcsFileOperationTest {
 
     //@Test
     public void testCopy() throws Exception {
@@ -28,7 +28,7 @@ public class GCSFileOperationTest {
         }
 
         DefaultFileSystemManager fileSystemManager = new DefaultFileSystemManager();
-        fileSystemManager.addProvider("gcs", new GCSFileProvider());
+        fileSystemManager.addProvider("gcs", new GcsFileProvider());
         fileSystemManager.init();
 
         // Create a URL for creating this remote file

@@ -25,7 +25,7 @@ public class GcsFileSystemConfigBuilder extends FileSystemConfigBuilder {
     @Override
     protected Class<? extends FileSystem> getConfigClass() {
 
-        return GCSFileSystem.class;
+        return GcsFileSystem.class;
     }
 
 

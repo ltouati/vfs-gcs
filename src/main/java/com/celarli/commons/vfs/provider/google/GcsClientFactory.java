@@ -12,7 +12,7 @@ import java.io.InputStream;
 import java.util.Optional;
 
 
-public class GCSClientFactory {
+public class GcsClientFactory {
 
     private static final String INVALID_CLIENT_TYPE = "No suitable client type found to create storage client";
     private static final String CREDENTIAL_NOT_FOUND = "Credential not found";
